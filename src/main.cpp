@@ -16,6 +16,9 @@
   #include <ESP8266WiFi.h>
 #endif
 #include <Firebase_ESP_Client.h>
+#include <Wire.h>
+#include <SPI.h>
+#include "Adafruit_SHT31.h"
 
 //Provide the token generation process info.
 #include "addons/TokenHelper.h"
@@ -46,6 +49,8 @@ unsigned long sendDataPrevMillis = 0;
 int count = 0;
 bool signupOK = false;
 
+Adafruit_SHT31 sht31 = Adafruit_SHT31();
+
 // Initialize WiFi
 void initWiFi() {
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -62,6 +67,12 @@ void initWiFi() {
 void setup(){
   Serial.begin(115200);
   initWiFi();
+
+  Serial.println("SHT31 test");
+  if (! sht31.begin(0x44)) {   // Set to 0x45 for alternate i2c addr
+    Serial.println("Couldn't find SHT31");
+    while (1) delay(1);
+  }
 
   /* Assign the api key (required) */
   config.api_key = API_KEY;
@@ -106,15 +117,35 @@ void setup(){
   signupOK = true;
 }
 
+float t, h;
+unsigned long recieveDataPrevMillis = 0;
+
 void loop(){
   if (Firebase.isTokenExpired()){
     Firebase.refreshToken(&config);
     Serial.println("Refresh token");
   }
 
+  if((millis() - recieveDataPrevMillis > 10000 || recieveDataPrevMillis == 0)){
+    t = sht31.readTemperature();
+    h = sht31.readHumidity();
+
+    if (! isnan(t)) {  // check if 'is not a number'
+      Serial.print("Temp *C = "); Serial.print(t); Serial.print("\t\t");
+    } else { 
+      Serial.println("Failed to read temperature");
+    }
+    
+    if (! isnan(h)) {  // check if 'is not a number'
+      Serial.print("Hum. % = "); Serial.println(h);
+    } else { 
+      Serial.println("Failed to read humidity");
+    }
+  }
+
   if (Firebase.ready() && signupOK && (millis() - sendDataPrevMillis > 15000 || sendDataPrevMillis == 0)){
     sendDataPrevMillis = millis();
-    // Write an Int number on the database path test/int
+    /* Write an Int number on the database path test/int
     if (Firebase.RTDB.setInt(&fbdo, "test/int", count)){
       Serial.println("PASSED");
       Serial.print("PATH: ");
@@ -128,9 +159,10 @@ void loop(){
       Serial.println(fbdo.errorReason());
     }
     count++;
-    
-    // Write an Float number on the database path test/float
-    if (Firebase.RTDB.setFloat(&fbdo, "test/float", 0.01 + random(0,100))){
+    */
+
+    // Write an Float number on the database path test/float, 0.01 + random(0,100)
+    if (Firebase.RTDB.setFloat(&fbdo, "test/temperature", t)){
       Serial.println("PASSED");
       Serial.print("PATH: ");
       Serial.println(fbdo.dataPath());
