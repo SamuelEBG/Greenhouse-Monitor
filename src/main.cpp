@@ -51,7 +51,6 @@ String uid;
 
 unsigned long sendDataPrevMillis = 0; //Handles interval of sending data to Firebase
 int count = 0;
-bool signupOK = false;
 
 Adafruit_SHT31 sht31 = Adafruit_SHT31();
 
@@ -118,7 +117,6 @@ void setup(){
   uid = auth.token.uid.c_str();
   Serial.print("User UID: ");
   Serial.print(uid);
-  signupOK = true;
 }
 // Handle data recieved from ESP32S3, together with interval for reading data
 float t, h;
@@ -151,7 +149,7 @@ void loop(){
   }
 
   // Post data from ESP32S3 to Firebase realtime database as long as user is authenticated
-  if (Firebase.ready() && signupOK && (millis() - sendDataPrevMillis > 15000 || sendDataPrevMillis == 0)){
+  if (Firebase.ready() && (millis() - sendDataPrevMillis > 15000 || sendDataPrevMillis == 0)){
     sendDataPrevMillis = millis();
     /* Write an Int number on the database path test/int
     if (Firebase.RTDB.setInt(&fbdo, "test/int", count)){
@@ -171,16 +169,13 @@ void loop(){
 
     // Write an Float number on the database path test/float, 0.01 + random(0,100)
     if (Firebase.RTDB.setFloat(&fbdo, "test/temperature", t)){
-      Serial.println("PASSED");
-      Serial.print("PATH: ");
-      Serial.println(fbdo.dataPath());
-      Serial.print("TYPE: ");
-      Serial.println(fbdo.dataType());
+      Serial.println("PASSED uploading to RTDB");
+      Serial.print("PATH: "); Serial.print(fbdo.dataPath()); 
+      Serial.print(" - TYPE: "); Serial.println(fbdo.dataType());
     }
     else {
       Serial.println("FAILED");
-      Serial.print("REASON:");
-      Serial.println(fbdo.errorReason());
+      Serial.print("REASON:"); Serial.println(fbdo.errorReason());
     }
   }
 }
