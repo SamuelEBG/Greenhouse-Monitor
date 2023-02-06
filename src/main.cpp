@@ -26,8 +26,12 @@
 #include "addons/RTDBHelper.h"
 
 // Insert your network credentials
+/*
 #define WIFI_SSID "Student"
 #define WIFI_PASSWORD "Kristiania1914"
+*/
+#define WIFI_SSID "MaxChillOutCrib"
+#define WIFI_PASSWORD "Ch1ll3rn!"
 
 // Insert Firebase project API Key
 #define API_KEY "AIzaSyCy3-DtGtHhTE3ouTFzL_Lp9ku-epRHGnI"
@@ -127,7 +131,8 @@ void loop(){
     Serial.println("Refresh token");
   }
   // Control how often we read temperature from ESP32S3 and if it reads temperature or not
-  if((millis() - recieveDataPrevMillis > 10000 || recieveDataPrevMillis == 0)){
+  if((millis() - recieveDataPrevMillis > 14500 || recieveDataPrevMillis == 0)){
+    recieveDataPrevMillis = millis();
     t = sht31.readTemperature();
     h = sht31.readHumidity();
 
@@ -136,12 +141,13 @@ void loop(){
     } else { 
       Serial.println("Failed to read temperature");
     }
-    
+    /* Humidity 
     if (! isnan(h)) {  // check if 'is not a number'
       Serial.print("Hum. % = "); Serial.println(h);
     } else { 
       Serial.println("Failed to read humidity");
     }
+    */
   }
 
   // Post data from ESP32S3 to Firebase realtime database as long as user is authenticated
