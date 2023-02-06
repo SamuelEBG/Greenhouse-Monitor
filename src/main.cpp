@@ -32,36 +32,48 @@
 // Insert RTDB URLefine the RTDB URL */
 #define DATABASE_URL "https://greenhouse-monitor-cdc89-default-rtdb.europe-west1.firebasedatabase.app/" 
 
+#define USER_EMAIL "segb1337@gmail.com"
+#define USER_PASSWORD "test123"
+
 //Define Firebase Data object
 FirebaseData fbdo;
-
 FirebaseAuth auth;
 FirebaseConfig config;
+
+String uid;
 
 unsigned long sendDataPrevMillis = 0;
 int count = 0;
 bool signupOK = false;
 
-void setup(){
-  Serial.begin(115200);
+// Initialize WiFi
+void initWiFi() {
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.print("Connecting to Wi-Fi");
-  while (WiFi.status() != WL_CONNECTED){
-    Serial.print(".");
-    delay(300);
+  Serial.print("Connecting to WiFi ..");
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print('.');
+    delay(1000);
   }
-  Serial.println();
   Serial.print("Connected with IP: ");
   Serial.println(WiFi.localIP());
   Serial.println();
+}
+
+void setup(){
+  Serial.begin(115200);
+  initWiFi();
 
   /* Assign the api key (required) */
   config.api_key = API_KEY;
 
+  // Assign the user sign in credentials
+  auth.user.email = USER_EMAIL;
+  auth.user.password = USER_PASSWORD;
+
   /* Assign the RTDB URL (required) */
   config.database_url = DATABASE_URL;
 
-  /* Sign up */
+  /* Sign up for anonumous user
   if (Firebase.signUp(&config, &auth, "", "")){
     Serial.println("ok");
     signupOK = true;
@@ -69,12 +81,29 @@ void setup(){
   else{
     Serial.printf("%s\n", config.signer.signupError.message.c_str());
   }
+  */
 
+  Firebase.reconnectWiFi(true);
+  fbdo.setResponseSize(4096);
   /* Assign the callback function for the long running token generation task */
   config.token_status_callback = tokenStatusCallback; //see addons/TokenHelper.h
-  
+
+  // Assign the maximum retry of token generation
+  config.max_token_generation_retry = 5;
+
   Firebase.begin(&config, &auth);
-  Firebase.reconnectWiFi(true);
+
+  // Getting the user UID might take a few seconds
+  Serial.println("Getting User UID");
+  while ((auth.token.uid) == "") {
+    Serial.print('.');
+    delay(1000);
+  }
+  // Print user UID
+  uid = auth.token.uid.c_str();
+  Serial.print("User UID: ");
+  Serial.print(uid);
+  signupOK = true;
 }
 
 void loop(){
