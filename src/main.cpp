@@ -135,7 +135,7 @@ void loop(){
     h = sht31.readHumidity();
 
     if (! isnan(t)) {  // check if 'is not a number'
-      Serial.print("Temp *C = "); Serial.print(t); Serial.print("\t\t");
+      Serial.print("Reading from ESP32S3, temp *C = "); Serial.println(t);
     } else { 
       Serial.println("Failed to read temperature");
     }
