@@ -116,7 +116,7 @@ void setup(){
   // Print user UID
   uid = auth.token.uid.c_str();
   Serial.print("User UID: ");
-  Serial.print(uid);
+  Serial.println(uid);
 }
 // Handle data recieved from ESP32S3, together with interval for reading data
 float t, h;
@@ -136,7 +136,7 @@ void loop(){
 
     if (! isnan(t)) {  // check if 'is not a number'
       Serial.print("Reading from ESP32S3, temp *C = "); Serial.println(t);
-    } else { 
+    } else {
       Serial.println("Failed to read temperature");
     }
     /* Humidity 
