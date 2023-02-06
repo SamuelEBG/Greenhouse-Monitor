@@ -45,7 +45,7 @@ FirebaseConfig config;
 
 String uid;
 
-unsigned long sendDataPrevMillis = 0;
+unsigned long sendDataPrevMillis = 0; //Handles interval of sending data to Firebase
 int count = 0;
 bool signupOK = false;
 
@@ -116,16 +116,17 @@ void setup(){
   Serial.print(uid);
   signupOK = true;
 }
-
+// Handle data recieved from ESP32S3, together with interval for reading data
 float t, h;
 unsigned long recieveDataPrevMillis = 0;
 
 void loop(){
+  // Renew token for authetification when it expires
   if (Firebase.isTokenExpired()){
     Firebase.refreshToken(&config);
     Serial.println("Refresh token");
   }
-
+  // Control how often we read temperature from ESP32S3 and if it reads temperature or not
   if((millis() - recieveDataPrevMillis > 10000 || recieveDataPrevMillis == 0)){
     t = sht31.readTemperature();
     h = sht31.readHumidity();
@@ -143,6 +144,7 @@ void loop(){
     }
   }
 
+  // Post data from ESP32S3 to Firebase realtime database as long as user is authenticated
   if (Firebase.ready() && signupOK && (millis() - sendDataPrevMillis > 15000 || sendDataPrevMillis == 0)){
     sendDataPrevMillis = millis();
     /* Write an Int number on the database path test/int
