@@ -19,24 +19,29 @@
 #include <Wire.h>
 #include <SPI.h>
 #include "Adafruit_SHT31.h"
+#include <MQTT.h>
 
+#include <iostream>
+#include <cstdlib>
+#include <bits/stdc++.h>
+
+// Insert your network credentials
+//define WIFI_SSID "Student"
+//#define WIFI_PASSWORD "Kristiania1914"
+#define WIFI_SSID "MaxChillOutCrib"
+#define WIFI_PASSWORD "Ch1ll3rn!"
+Adafruit_SHT31 sht31 = Adafruit_SHT31();
+
+/* FIREBASE REAL TIME DATABASE
 //Provide the token generation process info.
 #include "addons/TokenHelper.h"
 //Provide the RTDB payload printing info and other helper functions.
 #include "addons/RTDBHelper.h"
 
-// Insert your network credentials
-/*
-#define WIFI_SSID "Student"
-#define WIFI_PASSWORD "Kristiania1914"
-*/
-#define WIFI_SSID "MaxChillOutCrib"
-#define WIFI_PASSWORD "Ch1ll3rn!"
-
 // Insert Firebase project API Key
 #define API_KEY "AIzaSyCy3-DtGtHhTE3ouTFzL_Lp9ku-epRHGnI"
 
-// Insert RTDB URLefine the RTDB URL */
+// Insert RTDB URLefine the RTDB URL 
 #define DATABASE_URL "https://greenhouse-monitor-cdc89-default-rtdb.europe-west1.firebasedatabase.app/" 
 
 #define USER_EMAIL "segb1337@gmail.com"
@@ -46,13 +51,20 @@
 FirebaseData fbdo;
 FirebaseAuth auth;
 FirebaseConfig config;
-
 String uid;
 
 unsigned long sendDataPrevMillis = 0; //Handles interval of sending data to Firebase
-int count = 0;
+*/
+// END OF FIREBASE REAL TIME DATABASE
 
-Adafruit_SHT31 sht31 = Adafruit_SHT31();
+// MQTT EXPLORER WITH FIREBASE APP
+const char mqtt_username[] = "sago004";
+const char mqtt_password[] = "KX1~C^4U1e8GMz4";
+const char mqtt_server[]   = "mqtt.toytronics.com";
+String yourPersonalTopic;
+WiFiClient networkClient;
+MQTTClient mqttClient;
+// END of MQTT EXPLORER
 
 // Initialize WiFi
 void initWiFi() {
@@ -76,30 +88,21 @@ void setup(){
     Serial.println("Couldn't find SHT31");
     while (1) delay(1);
   }
+  /* FIREBASE CONNECTION
 
-  /* Assign the api key (required) */
+  // Assign the api key (required)
   config.api_key = API_KEY;
 
   // Assign the user sign in credentials
   auth.user.email = USER_EMAIL;
   auth.user.password = USER_PASSWORD;
 
-  /* Assign the RTDB URL (required) */
+  // Assign the RTDB URL (required)
   config.database_url = DATABASE_URL;
-
-  /* Sign up for anonumous user
-  if (Firebase.signUp(&config, &auth, "", "")){
-    Serial.println("ok");
-    signupOK = true;
-  }
-  else{
-    Serial.printf("%s\n", config.signer.signupError.message.c_str());
-  }
-  */
 
   Firebase.reconnectWiFi(true);
   fbdo.setResponseSize(4096);
-  /* Assign the callback function for the long running token generation task */
+  // Assign the callback function for the long running token generation task
   config.token_status_callback = tokenStatusCallback; //see addons/TokenHelper.h
 
   // Assign the maximum retry of token generation
@@ -117,13 +120,81 @@ void setup(){
   uid = auth.token.uid.c_str();
   Serial.print("User UID: ");
   Serial.println(uid);
+  */
+
+  // MQTT EXPLORER CONNECTION
+  mqttClient.begin(mqtt_server, networkClient);
+  mqttClient.onMessage(messageReceived);
+  connect();
 }
+
+void messageReceived(String &topic, String &payload) {
+    Serial.println("incoming message: " + topic + " - " + payload);
+}
+
+// For connection with MQTT
+void connect(){
+  String clientId = "ESP8266Client-"; // Create a random client ID
+  clientId += String(random(0xffff), HEX);
+
+  Serial.print("\nConnecting to Wifi...");
+  while (!mqttClient.connect(clientId.c_str(), mqtt_username, mqtt_password)) {
+      Serial.print(".");
+      delay(1000);
+  }
+
+  yourPersonalTopic = "students/"; // Create a topic path based on your username
+  yourPersonalTopic += String(mqtt_username);
+  Serial.print("\nConnected to Wifi! Setting up Subscription to the topic: ");
+  Serial.println( yourPersonalTopic );
+
+  mqttClient.subscribe( yourPersonalTopic.c_str() );
+}
+
 // Handle data recieved from ESP32S3, together with interval for reading data
 float t, h;
+unsigned long lastMillis = 0;
 unsigned long recieveDataPrevMillis = 0;
 
-void loop(){
-  // Renew token for authetification when it expires
+void loop() {
+
+  // Control how often we read temperature from ESP32S3 and if it reads temperature or not
+  if((millis() - recieveDataPrevMillis > 14500 || recieveDataPrevMillis == 0)){
+    recieveDataPrevMillis = millis();
+    t = sht31.readTemperature();
+    h = sht31.readHumidity();
+
+    if (! isnan(t)) {  // check if 'is not a number'
+      Serial.print("Reading from ESP32S3, temp *C = "); Serial.println(t);
+    } else {
+      Serial.println("Failed to read temperature");
+    }
+    //Humidity 
+    if (! isnan(h)) {  // check if 'is not a number'
+      Serial.print("Hum. % = "); Serial.println(h);
+    } else { 
+      Serial.println("Failed to read humidity");
+    }
+  }
+  char buffer[7];
+  dtostrf(t, 7, 3, buffer);
+  if (millis() - lastMillis > 15000) {
+    lastMillis = millis();
+    Serial.printf("publishing\n");
+    mqttClient.publish(yourPersonalTopic.c_str(), buffer);
+  }
+
+  mqttClient.loop();
+  delay(10);  // <- fixes some issues with WiFi stability
+
+  if (!mqttClient.connected()) {
+    connect();
+  }
+}
+
+/* void loopWithFirebase(){
+
+  // Renew token for authetification with when it expires
   if (Firebase.isTokenExpired()){
     Firebase.refreshToken(&config);
     Serial.println("Refresh token");
@@ -139,13 +210,12 @@ void loop(){
     } else {
       Serial.println("Failed to read temperature");
     }
-    /* Humidity 
+    //Humidity 
     if (! isnan(h)) {  // check if 'is not a number'
       Serial.print("Hum. % = "); Serial.println(h);
     } else { 
       Serial.println("Failed to read humidity");
     }
-    */
   }
 
   // Post data from ESP32S3 to Firebase realtime database as long as user is authenticated
@@ -165,10 +235,10 @@ void loop(){
       Serial.println(fbdo.errorReason());
     }
     count++;
-    */
+    
 
     // Write an Float number on the database path test/float, 0.01 + random(0,100)
-    if (Firebase.RTDB.setFloat(&fbdo, "test/temperature", t)){
+    if (Firebase.RTDB.setFloat(&fbdo, "temperature", t)){
       Serial.println("PASSED uploading to RTDB");
       Serial.print("PATH: "); Serial.print(fbdo.dataPath()); 
       Serial.print(" - TYPE: "); Serial.println(fbdo.dataType());
@@ -179,3 +249,4 @@ void loop(){
     }
   }
 }
+*/
