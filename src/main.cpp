@@ -22,14 +22,13 @@
 #include <MQTT.h>
 
 #include <iostream>
-#include <cstdlib>
-#include <bits/stdc++.h>
+#include <string>
 
 // Insert your network credentials
-//define WIFI_SSID "Student"
-//#define WIFI_PASSWORD "Kristiania1914"
-#define WIFI_SSID "MaxChillOutCrib"
-#define WIFI_PASSWORD "Ch1ll3rn!"
+#define WIFI_SSID "Student"
+#define WIFI_PASSWORD "Kristiania1914"
+//#define WIFI_SSID "MaxChillOutCrib"
+//#define WIFI_PASSWORD "Ch1ll3rn!"
 Adafruit_SHT31 sht31 = Adafruit_SHT31();
 
 /* FIREBASE REAL TIME DATABASE
@@ -66,6 +65,11 @@ WiFiClient networkClient;
 MQTTClient mqttClient;
 // END of MQTT EXPLORER
 
+// Thingspeak MQTT
+String id = "NDgiFBgfEDYQLS43DBsODzM";
+String username = "NDgiFBgfEDYQLS43DBsODzM";
+String password = "CYCpByXPitZSGCmJg3e0Y1OF";
+
 // Initialize WiFi
 void initWiFi() {
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -77,6 +81,29 @@ void initWiFi() {
   Serial.print("Connected with IP: ");
   Serial.println(WiFi.localIP());
   Serial.println();
+}
+
+// For connection with MQTT
+void connect(){
+  String clientId = "ESP8266Client-"; // Create a random client ID
+  clientId += String(random(0xffff), HEX);
+
+  Serial.print("\nConnecting to Wifi...");
+  while (!mqttClient.connect(clientId.c_str(), mqtt_username, mqtt_password)) {
+      Serial.print(".");
+      delay(1000);
+  }
+
+  yourPersonalTopic = "banana-farm/"; // Create a topic path based on your username
+  yourPersonalTopic += "wh01";
+  Serial.print("\nConnected to Wifi! Setting up Subscription to the topic: ");
+  Serial.println( yourPersonalTopic );
+
+  mqttClient.subscribe( yourPersonalTopic.c_str() );
+}
+
+void messageReceived(String &topic, String &payload) {
+    Serial.println("incoming message: " + topic + " - " + payload);
 }
 
 void setup(){
@@ -128,29 +155,6 @@ void setup(){
   connect();
 }
 
-void messageReceived(String &topic, String &payload) {
-    Serial.println("incoming message: " + topic + " - " + payload);
-}
-
-// For connection with MQTT
-void connect(){
-  String clientId = "ESP8266Client-"; // Create a random client ID
-  clientId += String(random(0xffff), HEX);
-
-  Serial.print("\nConnecting to Wifi...");
-  while (!mqttClient.connect(clientId.c_str(), mqtt_username, mqtt_password)) {
-      Serial.print(".");
-      delay(1000);
-  }
-
-  yourPersonalTopic = "students/"; // Create a topic path based on your username
-  yourPersonalTopic += String(mqtt_username);
-  Serial.print("\nConnected to Wifi! Setting up Subscription to the topic: ");
-  Serial.println( yourPersonalTopic );
-
-  mqttClient.subscribe( yourPersonalTopic.c_str() );
-}
-
 // Handle data recieved from ESP32S3, together with interval for reading data
 float t, h;
 unsigned long lastMillis = 0;
@@ -176,8 +180,8 @@ void loop() {
       Serial.println("Failed to read humidity");
     }
   }
-  char buffer[7];
-  dtostrf(t, 7, 3, buffer);
+  char buffer[20];
+  sprintf(buffer, "%.2f", t);
   if (millis() - lastMillis > 15000) {
     lastMillis = millis();
     Serial.printf("publishing\n");
